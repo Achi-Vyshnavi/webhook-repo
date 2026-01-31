@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GitHub Webhook Events</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+    }
+    #events {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
+    }
+    .event {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .event:last-child {
+      border-bottom: none;
+    }
+    .type {
+      font-weight: bold;
+      color: #007bff;
+    }
+    .timestamp {
+      font-size: 0.85em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>GitHub Webhook Events</h1>
+  <div id="events">
+    Loading events...
+  </div>
+
+  <script>
+    function formatTimestamp(isoStr) {
+      const date = new Date(isoStr);
+      const day = date.getUTCDate();
+      const monthNames = ["January", "February", "March", "April", "May", "June",
+                          "July", "August", "September", "October", "November", "December"];
+      const month = monthNames[date.getUTCMonth()];
+      const year = date.getUTCFullYear();
+
+      let hours = date.getUTCHours();
+      const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+
+      // Add suffix for day (1st, 2nd, 3rd, 4th...)
+      function getDaySuffix(d) {
+        if (d > 3 && d < 21) return 'th';
+        switch (d % 10) {
+          case 1: return 'st';
+          case 2: return 'nd';
+          case 3: return 'rd';
+          default: return 'th';
+        }
+      }
+
+      return `${day}${getDaySuffix(day)} ${month} ${year} - ${hours}:${minutes} ${ampm} UTC`;
+    }
+
+    async function loadEvents() {
+      try {
+        const res = await fetch('/events');
+        const events = await res.json();
+
+        const container = document.getElementById('events');
+        if (!events.length) {
+          container.innerHTML = 'No events yet.';
+          return;
+        }
+
+        container.innerHTML = '';
+        events.forEach(ev => {
+          let text = '';
+          if (ev.type === 'PUSH') {
+            text = `"${ev.author}" pushed to "${ev.to_branch}" on ${formatTimestamp(ev.timestamp)}`;
+          } else if (ev.type === 'PULL_REQUEST') {
+            text = `"${ev.author}" submitted a pull request from "${ev.from_branch}" to "${ev.to_branch}" on ${formatTimestamp(ev.timestamp)}`;
+          } else if (ev.type === 'MERGE') {
+            text = `"${ev.author}" merged branch "${ev.from_branch}" to "${ev.to_branch}" on ${formatTimestamp(ev.timestamp)}`;
+          } else {
+            text = `"${ev.author}" did something on ${formatTimestamp(ev.timestamp)}`;
+          }
+
+          const div = document.createElement('div');
+          div.className = 'event';
+          div.textContent = text;
+          container.appendChild(div);
+        });
+
+      } catch (err) {
+        console.error('Error loading events:', err);
+      }
+    }
+
+    // Initial load
+    loadEvents();
+    // Poll every 15 seconds
+    setInterval(loadEvents, 15000);
+  </script>
+</body>
+</html>
