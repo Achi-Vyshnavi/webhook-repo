@@ -1,125 +1,153 @@
-# Webhook-Repo
+Webhook Repo - GitHub Event Listener
 
-This repository implements the **GitHub webhook endpoint** for capturing repository events (Push, Pull Request, Merge) and storing them in **MongoDB**. It also serves a minimal **UI** that displays the latest events in real-time.
+This repository implements a GitHub webhook receiver that listens for events from another repository (action-repo) and stores them in MongoDB. The events are then displayed in a clean UI that polls the database every 15 seconds.
 
----
+This repo fulfills the Developer Assessment Task requirements for capturing GitHub actions ("Push", "Pull Request", "Merge") and rendering them to the UI.
 
-## Table of Contents
-
-- [Overview](#overview)  
-- [Features](#features)  
-- [Repository Structure](#repository-structure)  
-- [Setup & Installation](#setup--installation)  
-- [Running the Application](#running-the-application)  
-- [Testing the Webhook](#testing-the-webhook)  
-- [UI](#ui)  
-- [MongoDB Schema](#mongodb-schema)  
-- [Submission](#submission)  
-
----
-
-## Overview
-
-This repository acts as the **webhook receiver** for a separate GitHub repository (`action-repo`) where events occur. The webhook listens to the following events:
-
-1. **Push** – Triggered when code is pushed to any branch.  
-2. **Pull Request** – Triggered when a pull request is created or updated.  
-3. **Merge** – Triggered when a pull request is merged.  
-
-The webhook stores only the **necessary information** in MongoDB and displays it neatly in a UI.
-
----
-
-## Features
-
-- Receives GitHub webhook events (`push`, `pull_request`).  
-- Detects if a pull request was merged.  
-- Stores event data in MongoDB with timestamp.  
-- Minimal UI that fetches events from MongoDB every 15 seconds.  
-- Displays events in the following formats:
-
-| Event Type      | Display Format |
-|-----------------|----------------|
-| PUSH            | `"author" pushed to "to_branch" on timestamp` |
-| PULL_REQUEST    | `"author" submitted a pull request from "from_branch" to "to_branch" on timestamp` |
-| MERGE           | `"author" merged branch "from_branch" to "to_branch" on timestamp` |
-
----
-
-## Repository Structure
-
+Repo Structure
 webhook-repo/
-├─ app.py # Flask application with webhook endpoints
-├─ requirements.txt # Python dependencies
-└─ templates/
-└─ index.html # UI to display events
+│
+├── app.py                # Flask backend server
+├── requirements.txt      # Python dependencies
+├── templates/
+│   └── index.html        # Frontend UI to display events
+└── README.md             # This file
 
 
-> No `static/` folder is included, since CSS and JS are embedded in `index.html`.
+Note: The static/ folder is not required, as all CSS and JavaScript are embedded in index.html.
 
----
+Features
 
-## Setup & Installation
+Webhook Receiver
 
-1. Clone the repository:
+Listens for GitHub webhook events:
 
-```bash
-git clone <webhook-repo-url>
-cd webhook-repo
-Create a virtual environment (optional):
+push → stored as PUSH
 
-python -m venv venv
-source venv/bin/activate      # Linux/Mac
-venv\Scripts\activate         # Windows
-Install dependencies:
+pull_request → stored as PULL_REQUEST
 
-pip install -r requirements.txt
-Ensure MongoDB is running on mongodb://localhost:27017/.
+pull_request with action=closed and merged=true → stored as MERGE
 
-Running the Application
-python app.py
-Flask runs on http://localhost:5000/
+Stores the minimal necessary data in MongoDB:
 
-Webhook endpoint: POST /webhook
+author (user who triggered the event)
 
-UI to view events: GET / (index.html)
+to_branch (branch targeted)
 
-Testing the Webhook
-Go to the action-repo repository.
+from_branch (source branch, if applicable)
 
-Navigate to Settings → Webhooks → Add webhook.
+timestamp (UTC)
 
-Set Payload URL to the webhook endpoint:
+MongoDB Storage
 
-http://<server-ip>:5000/webhook
-Set Content type to application/json.
+MongoDB is used to persist webhook events.
 
-Select Just the push and pull request events.
+Collection: events in database: github_webhooks.
 
-GitHub will send events on push, pull request, or merge.
-
-UI
-Accessible at http://localhost:5000/.
-
-Displays events in a clean, minimal layout.
-
-Automatically polls MongoDB every 15 seconds for new events.
-
-Example formats:
-
-"Travis" pushed to "staging" on 1st April 2021 - 9:30 PM UTC
-"Travis" submitted a pull request from "staging" to "master" on 1st April 2021 - 9:00 AM UTC
-"Travis" merged branch "dev" to "master" on 2nd April 2021 - 12:00 PM UTC
-MongoDB Schema
-Each event document structure:
+Example document:
 
 {
-  "type": "PUSH" | "PULL_REQUEST" | "MERGE",
-  "author": "username",
-  "from_branch": "branch_name",   // only for pull requests and merges
-  "to_branch": "branch_name",
-  "timestamp": "ISO8601 formatted timestamp"
+  "type": "PUSH",
+  "author": "Travis",
+  "to_branch": "master",
+  "from_branch": "",
+  "timestamp": "2026-01-31T12:00:00Z"
 }
-All timestamps are in UTC.
 
-Only minimal, necessary information is stored.
+
+Frontend UI
+
+Displays events in a clean, minimal design.
+
+Automatically polls /events route every 15 seconds.
+
+Formats timestamps in readable UTC format (with st, nd, rd, th suffixes).
+
+Ngrok Support (Optional)
+
+For local development, expose the Flask server to GitHub via ngrok:
+
+ngrok http 5000
+
+
+Use the generated public URL in GitHub webhook settings.
+
+Setup Instructions
+
+Clone Repository
+
+git clone <webhook-repo-url>
+cd webhook-repo
+
+
+Install Python Dependencies
+
+pip install -r requirements.txt
+
+
+Ensure MongoDB is Running
+
+Default connection: mongodb://localhost:27017/
+
+Database: github_webhooks
+
+Collection: events
+
+Start MongoDB locally or use a cloud service (MongoDB Atlas).
+
+Run the Flask Server
+
+python app.py
+
+
+Server runs on: http://localhost:5000/
+
+Access Frontend UI
+
+Open: http://localhost:5000/
+
+The events will load dynamically and refresh every 15 seconds.
+
+Set Up GitHub Webhook
+
+Go to your action-repo → Settings → Webhooks → Add webhook
+
+Payload URL: <ngrok-or-local-url>/webhook
+
+Content type: application/json
+
+Select individual events: Push, Pull Request
+
+Save the webhook.
+
+Example Event Formats in UI
+
+Push
+
+"Travis" pushed to "staging" on 1st April 2021 - 9:30 PM UTC
+
+
+Pull Request
+
+"Travis" submitted a pull request from "staging" to "master" on 1st April 2021 - 9:00 AM UTC
+
+
+Merge
+
+"Travis" merged branch "dev" to "master" on 2nd April 2021 - 12:00 PM UTC
+
+Requirements
+
+Create a requirements.txt file with the following:
+
+Flask==2.3.2
+pymongo==4.7.1
+dnspython==3.8.0   # Only if using MongoDB Atlas
+
+Notes
+
+All frontend scripts and styles are embedded in index.html.
+
+MongoDB must be accessible to the Flask server.
+
+Use ngrok or similar tool to expose local server for GitHub webhook testing.
